@@ -1,0 +1,27 @@
+syntax = "proto3";
+option java_multiple_files = true;
+option java_package = "org.womenpower.courses";
+
+service CourseService {
+  rpc EnrollCourse (CourseEnrollment) returns (EnrollmentStatus);
+  rpc GenerateCertificate (CertificateRequest) returns (Certificate);
+}
+
+message CourseEnrollment {
+  string user_id = 1;
+  string course_id = 2;
+}
+
+message EnrollmentStatus {
+  string enrollment_id = 1;
+  string course_link = 2;
+}
+
+message CertificateRequest {
+  string enrollment_id = 1;
+  string assessment_score = 2;
+}
+
+message Certificate {
+  string pdf_url = 1;
+}
