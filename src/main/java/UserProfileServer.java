@@ -3,12 +3,17 @@ import io.grpc.ServerBuilder;
 import io.grpc.stub.StreamObserver;
 import org.womenpower.userprofile.*;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class UserProfileServer {
-    public static void main(String[] args) {
-        Server server = ServerBuilder.forPort(8090).addService(new UserRegisterServiceImpl()).build();
+    public static void main(String[] args) throws Exception {
+        Server server = ServerBuilder.forPort(8090)
+                .addService(new UserRegisterServiceImpl())
+                .build();
+        server.start();
         System.out.println("Starting User Profile Server");
         System.out.println("Listening on port 8090");
+        server.awaitTermination();
     }
     static class UserProfileData {
         String id;
@@ -24,30 +29,39 @@ public class UserProfileServer {
         }
     }
     static class UserRegisterServiceImpl extends UserProfileServiceGrpc.UserProfileServiceImplBase {
-        String newUserId = UUID.randomUUID().toString();  // to generate an unique id for use
+        //to storage users
+        private final ConcurrentHashMap<String, UserProfileData> userStorage = new ConcurrentHashMap<>();
 
         @Override
         public void registerUser(RegisterRequest request, StreamObserver<RegisterResponse> responseObserver) {
-            super.registerUser(request, responseObserver);
 
+            String newUserId = UUID.randomUUID().toString();  // to generate an unique id for user
             String userName = request.getName();
             String userEmail = request.getEmail();
             String userProfession = request.getProfession();
+
             System.out.println("Registering user: " + userName);
 
             UserProfileData userData = new UserProfileData(newUserId, userName, userEmail, userProfession);
-            responseObserver.onNext(RegisterResponse.newBuilder().setUserId("NARA")
-            ;        .setSuccess(true)
-                    .build());
+            userStorage.put(newUserId, userData);
+
+            RegisterResponse response = RegisterResponse.newBuilder()
+                    .setUserId(newUserId)  // Use the generated ID
+                    .setSuccess(true)
+                    .build();
+
+            responseObserver.onNext(response);
             responseObserver.onCompleted();
-
         }
-
-        //TODO: implement
 
         @Override
         public void getUserSkills(UserRequest request, StreamObserver<Skill> responseObserver) {
-            super.getUserSkills(request, responseObserver);
+           responseObserver.onNext(Skill.newBuilder()
+                   .setName("HTML")
+                   .setLevel("Basic")
+           .build());
+
+           responseObserver.onCompleted();
         }
     }
 }
