@@ -3,8 +3,9 @@ import io.grpc.ServerBuilder;
 import io.grpc.stub.StreamObserver;
 import org.womenpower.courses.*;
 
-import java.io.IOException;
+import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentMap;
 
 public class CourseServiceServer { //method to initiate the server
     public static void main(String[] args) throws Exception {
@@ -12,6 +13,7 @@ public class CourseServiceServer { //method to initiate the server
                 .addService(new CourseEnrollmentImpl()) //to register implementation
                 .build();
         System.out.println( "Starting Course Service Server");
+        System.out.println("Listening on port 8091");
 
         sv.start(); //to initiate server
         sv.awaitTermination();  //keep the server running
