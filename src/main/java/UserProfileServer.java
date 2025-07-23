@@ -8,6 +8,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class UserProfileServer {
     public static void main(String[] args) throws Exception {
@@ -46,10 +48,15 @@ public class UserProfileServer {
         //to storage users
         private final ConcurrentHashMap<String, UserProfileData> userStorage = new ConcurrentHashMap<>();
 
+        //email format validation
+        private static final String EMAIL_REGEX = "^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Z|a-z]{2,6}$";
+        private static final Pattern EMAIL_PATTERN = Pattern.compile(EMAIL_REGEX);
+
         @Override
         public void registerUser(RegisterRequest request, StreamObserver<RegisterResponse> responseObserver) {
 
-            String newUserId = UUID.randomUUID().toString();  // to generate an unique id for user
+            String uuidPart = String.valueOf(Math.abs(UUID.randomUUID().getLeastSignificantBits())).substring(0, Math.min(8, String.valueOf(Math.abs(UUID.randomUUID().getLeastSignificantBits())).length()));
+            String newUserId = "ID" + uuidPart;  // to generate an unique id for user
             String userName = request.getName();
             String userEmail = request.getEmail();
             String userProfession = request.getProfession();
@@ -64,12 +71,22 @@ public class UserProfileServer {
                 System.out.println("Error: Username or email address required");
                 return;
             }
+                //email format validation
+            Matcher matcher = EMAIL_PATTERN.matcher(userEmail);
+            if (!matcher.matches()) {
+                responseObserver.onNext(RegisterResponse.newBuilder()
+                        .setUserId("") // Indicates failure
+                        .build());
+                responseObserver.onCompleted();
+                System.out.println("Registration failed: Invalid email format for " + userEmail);
+                return; // Exit the method if email format is invalid
+            }
 
             UserProfileData userData = new UserProfileData(newUserId, userName, userEmail, userProfession);
-            userStorage.put(newUserId, userData);
 
             userData.addSkill(Skill.newBuilder().setName("Communication").setLevel("Beginner").build());
             userData.addSkill(Skill.newBuilder().setName("JavaScript").setLevel("Advanced").build());
+            userStorage.put(newUserId, userData);
 
             RegisterResponse response = RegisterResponse.newBuilder()
                     .setUserId(newUserId)
@@ -97,10 +114,12 @@ public class UserProfileServer {
           if (skills.isEmpty()) {
               System.out.println("User " + userId + " has no skills");
           } else {
-              System.out.println("User " + userId + " has " + skills.size() + " skills");
+              System.out.println("User " + userId + " has " + skills.size() + " skills. Sending now...");
+              for (Skill skill : skills) {
+                  responseObserver.onNext(skill);
+              }
           }
-
-           responseObserver.onCompleted();
+          responseObserver.onCompleted();
         }
     }
 }

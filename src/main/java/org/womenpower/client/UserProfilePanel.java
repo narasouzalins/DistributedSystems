@@ -41,7 +41,7 @@ public class UserProfilePanel extends JPanel implements ActionListener {
         emailField = new JTextField(15);
         professionField = new JTextField(15);
 
-        //auxiliar method to add label fields
+        // method to add label fields
         registerSection.add(createLabelField("Name: ", nameField));
         registerSection.add(createLabelField("Email: ", emailField));
         registerSection.add(createLabelField("Profession: ", professionField));
@@ -119,7 +119,7 @@ public class UserProfilePanel extends JPanel implements ActionListener {
             RegisterResponse response = blockingStub.registerUser(request);
 
             if(!response.getUserId().isEmpty()){
-                registerResultArea.setText("User successfully registered" + response.getUserId());
+                registerResultArea.setText("User successfully registered " + response.getUserId());
                 nameField.setText("");
                 emailField.setText("");
                 professionField.setText("");
