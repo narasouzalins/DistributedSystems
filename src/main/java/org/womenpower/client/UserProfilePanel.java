@@ -95,6 +95,8 @@ public class UserProfilePanel extends JPanel implements ActionListener {
         JScrollPane scrollPanelSkill = new JScrollPane(skillResultArea);
         skillSection.add(scrollPanelSkill);
         add(skillSection);
+
+        loadAvailableSkills();
     }
 
     private JPanel createLabelField(String labelText, JComponent component){
@@ -121,13 +123,26 @@ public class UserProfilePanel extends JPanel implements ActionListener {
         ListAvailableSkillsRequest request = ListAvailableSkillsRequest.newBuilder().build();
         try{
             AvailableSkillList response = skillSelectionBlockingStub.listAvailableSkills(request);
+
+            SwingUtilities.invokeLater(() ->{
             for(AvailableSkill skill : response.getSkillsList()){
                 skillsDropdown.addItem(skill.getName()); //add name to dropdown
                 skillNameToIdMap.put(skill.getName(), skill.getId());
             }
             registerResultArea.append("Skills loaded successfully\n");
+
+            skillsDropdown.revalidate();
+            skillsDropdown.repaint();
+
+            SwingUtilities.getWindowAncestor(this).revalidate();
+            SwingUtilities.getWindowAncestor(this).repaint();
+            });
+
         }catch (StatusRuntimeException e){
-            registerResultArea.append("Error loading skills: " + e.getMessage());
+            System.err.println("Error loading skills:  " + e.getMessage()); // Log de erro
+            SwingUtilities.invokeLater(() -> {
+                registerResultArea.append("Error loading skills: " + e.getMessage() + "\n");
+            });
         }
     }
         //CALL gRPC registerUser()
@@ -161,12 +176,14 @@ public class UserProfilePanel extends JPanel implements ActionListener {
                     nameField.setText("");
                     emailField.setText("");
                     professionField.setText("");
+                    skillsDropdown.setSelectedIndex(-1);
                 }else{
-                    registerResultArea.setText("Error: Username and email are required");
-                    return;
+                    registerResultArea.setText("Error registering user: " + response.getMessage());
                 }
             }catch (StatusRuntimeException e){
-                registerResultArea.setText("Error registering user: " + e.getMessage());
+                registerResultArea.setText("Error registering user (gRPC issue): " + e.getMessage());
+                System.err.println("gRPC error during user registration: " + e.getStatus() + " - " + e.getMessage());
+                e.printStackTrace();
             }
     }
     //CALL gRPC getUSerSkills
@@ -199,7 +216,9 @@ public class UserProfilePanel extends JPanel implements ActionListener {
             skillResultArea.setText(sb.toString());
 
         }catch(StatusRuntimeException ex){
-                    System.out.println("Error getting skills: ");
+            System.err.println("Error getting skills (gRPC issue): " + ex.getStatus() + " - " + ex.getMessage());
+            skillResultArea.setText("Error getting skills: " + ex.getMessage());
+            ex.printStackTrace();
         }
     }
 }

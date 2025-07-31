@@ -7,6 +7,7 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
+import org.womenpower.client.JobHubPanel;
 
 public class WomenPowerClientApp extends JFrame {
 
@@ -14,12 +15,13 @@ public class WomenPowerClientApp extends JFrame {
     private ManagedChannel courseChannel;
     private ManagedChannel jobHubChannel;
     private CourseServicePanel courseServicePanel;
+    private JobHubPanel jobHubPanel;
 
     //constructor
     public WomenPowerClientApp() {
         super("WomenPower Platform - GUI Client");
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        setSize(900, 700);  //adjust size to fit better
+        setSize(1350, 700);  //adjust size to fit better
         setLocationRelativeTo(null);
 
         //initialize gRPC channels
@@ -30,7 +32,7 @@ public class WomenPowerClientApp extends JFrame {
         setLayout(new BorderLayout());
 
         JPanel mainContentPanel = new JPanel();
-        mainContentPanel.setLayout(new GridLayout(1, 2));  //to place panels side-by-side
+        mainContentPanel.setLayout(new GridLayout(1, 3));  //to place panels side-by-side
         UserProfilePanel userProfilePanel = new UserProfilePanel(userProfileChannel);
         mainContentPanel.add(userProfilePanel);
 
@@ -39,6 +41,12 @@ public class WomenPowerClientApp extends JFrame {
 
         add(mainContentPanel, BorderLayout.CENTER);
         setVisible(true);  //window get visible for users
+
+        jobHubPanel  = new JobHubPanel(jobHubChannel);
+        mainContentPanel.add(jobHubPanel);
+
+        add(mainContentPanel, BorderLayout.CENTER);
+        setVisible(true);
 
         // Add window listener for gRPC channel shutdown
         addWindowListener(new WindowAdapter() {

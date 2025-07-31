@@ -94,22 +94,26 @@ public class UserProfileServer {
             System.out.println("Registering user: " + userName);
 
             if (userName.isEmpty() || userEmail.isEmpty() || userProfession.isEmpty()) {
+                System.out.println("Validation failed: Username, email, or profession is empty."); // Log mais específico
                 responseObserver.onNext(RegisterResponse.newBuilder()
+                        .setSuccess(false)
+                        .setMessage("Username, email, and profession are required.")
                         .setUserId("")
                         .build());
                 responseObserver.onCompleted();
-                System.out.println("Error: Username or email address required");
                 return;
             }
             //email format validation
             Matcher matcher = EMAIL_PATTERN.matcher(userEmail);
             if (!matcher.matches()) {
+                System.out.println("Validation failed: Invalid email format for " + userEmail); // Log mais específico
                 responseObserver.onNext(RegisterResponse.newBuilder()
-                        .setUserId("") // Indicates failure
+                        .setSuccess(false) //indicate failure
+                        .setMessage("Invalid email format.") //error message to user
+                        .setUserId("")
                         .build());
                 responseObserver.onCompleted();
-                System.out.println("Registration failed: Invalid email format for " + userEmail);
-                return; // Exit the method if email format is invalid
+                return;
             }
 
             UserProfileData userData = new UserProfileData(newUserId, userName, userEmail, userProfession);
@@ -120,7 +124,9 @@ public class UserProfileServer {
             userStorage.put(newUserId, userData);
 
             RegisterResponse response = RegisterResponse.newBuilder()
+                    .setSuccess(true)
                     .setUserId(newUserId)
+                    .setMessage("User registered successfully. ID: " + newUserId)
                     .build();
 
             responseObserver.onNext(response);
@@ -136,12 +142,18 @@ public class UserProfileServer {
             GetUserSkillsResponse.Builder responseBuilder = GetUserSkillsResponse.newBuilder();
 
             if (userData == null) {
-                responseObserver.onError(Status.NOT_FOUND.withDescription("User not found").asRuntimeException());
+                responseObserver.onNext(GetUserSkillsResponse.newBuilder()
+                                .setSuccess(false)
+                                .setMessage("User not found: " + userId)
+                                .build());
+                responseObserver.onCompleted();
+                System.out.println("Error: User not found for ID: " + userId);
                 return;
             }
             List<String> skills = userData.getSkills();//to get id skills
-            System.out.println("Skills for user: " + userId);
+            System.out.println("Skills for user " + userId + ": " + skills);
 
+            boolean isSuccess = true; //flag to verify all skills are valid
             for (String skillId : skills) {
                 AvailableSkill availableSkill = SkillSelectionServiceImpl.getAvailableSkillMap().get(skillId);
 
@@ -153,21 +165,21 @@ public class UserProfileServer {
                     responseBuilder.addSkills(userSkillBuilder.build());        // Build the UserSkill and then add it to the response builder
                 } else {
                     //if the skills is not valid
-                    responseObserver.onError(Status.NOT_FOUND.withDescription("Skill not found").asRuntimeException());
+                    System.err.println("Warning: Skill ID " + skillId + " for user " + userId + " not found in available skills.");
+                    isSuccess = false;
                 }
             }
-            for (String skillId : skills) {
-                AvailableSkill availableSkill = SkillSelectionServiceImpl.getAvailableSkillMap().get(skillId);
-
-                if (availableSkill != null) {
-                    UserSkill.Builder userSkillBuilder = UserSkill.newBuilder()
-                            .setId(skillId)
-                            .setName(availableSkill.getName());
-                    responseBuilder.addSkills(userSkillBuilder.build());
-                    responseObserver.onNext(responseBuilder.build());
-                    responseObserver.onCompleted();
-                }
+            responseBuilder.setSuccess(isSuccess);
+            if (!isSuccess) {
+                responseBuilder.setMessage("One or more skills are invalid.");
+            } else if (skills.isEmpty()) {
+                responseBuilder.setMessage("No skills selected for this user.");
+            }else{
+                responseBuilder.setMessage("Skills retrieved successfully.");
             }
+            responseObserver.onNext(responseBuilder.build());
+            responseObserver.onCompleted();
+            System.out.println("Skills retrieved for user " + userId);
         }
     }
 }
