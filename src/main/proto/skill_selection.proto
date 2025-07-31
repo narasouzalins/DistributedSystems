@@ -1,0 +1,20 @@
+syntax = "proto3";
+
+option java_package = "org.womenpower.skillselection";
+option java_multiple_files = true;
+
+// service to list skills
+service SkillSelectionService {
+  rpc ListAvailableSkills (ListAvailableSkillsRequest) returns (AvailableSkillList);
+}
+
+message ListAvailableSkillsRequest {}
+
+message AvailableSkill {
+  string id = 1;    // skill id (ex: "java", "agile")
+  string name = 2;  // skills name
+}
+
+message AvailableSkillList {
+  repeated AvailableSkill skills = 1;
+}

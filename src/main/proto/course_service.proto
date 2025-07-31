@@ -5,6 +5,7 @@ option java_package = "org.womenpower.courses";
 service CourseService {
   rpc EnrollCourse (CourseEnrollment) returns (EnrollmentStatus);
   rpc GenerateCertificate (CertificateRequest) returns (Certificate);
+  rpc ListCourses (ListCoursesRequest) returns (CourseList);
 }
 
 message CourseEnrollment {
@@ -24,4 +25,19 @@ message CertificateRequest {
 
 message Certificate {
   string pdf_url = 1;
+}
+
+message Course {
+  string course_id = 1;
+  string title = 2;
+  string description = 3;
+  string lecturer = 4;
+}
+
+message CourseList {
+  repeated Course courses = 1;
+}
+
+message ListCoursesRequest{
+
 }

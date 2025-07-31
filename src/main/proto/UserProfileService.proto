@@ -1,0 +1,37 @@
+
+syntax = "proto3";
+
+option java_package = "org.womenpower.userprofile";
+option java_multiple_files = true;
+
+service UserProfileService {
+  rpc RegisterUser (RegisterRequest) returns (RegisterResponse);
+  rpc GetUserSkills (GetUserSkillsRequest) returns (GetUserSkillsResponse);
+}
+
+message RegisterRequest {
+  string username = 1;
+  string email = 2;
+  string profession = 3;
+  repeated string selected_skill_ids = 4;
+}
+
+message RegisterResponse {
+  string user_id = 1;
+  bool success = 2;
+  string message = 3;
+}
+
+message GetUserSkillsRequest{
+  string user_id = 1;
+}
+message UserSkill{
+  string id = 1;
+  string name = 2;
+}
+message GetUserSkillsResponse{
+  repeated UserSkill skills = 1; //ist of user skills
+  bool success = 2;
+  string message = 3;
+
+}

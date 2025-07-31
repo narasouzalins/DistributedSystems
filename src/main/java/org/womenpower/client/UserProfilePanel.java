@@ -2,6 +2,10 @@ package org.womenpower.client;
 
 import io.grpc.ManagedChannel;
 import io.grpc.StatusRuntimeException;
+import org.womenpower.skillselection.AvailableSkill;
+import org.womenpower.skillselection.AvailableSkillList;
+import org.womenpower.skillselection.ListAvailableSkillsRequest;
+import org.womenpower.skillselection.SkillSelectionServiceGrpc;
 import org.womenpower.userprofile.*;
 
 import javax.swing.*;
@@ -9,11 +13,15 @@ import javax.swing.border.EmptyBorder;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import java.util.Iterator;
+import java.util.HashMap;
+import java.util.Map;
 
 public class UserProfilePanel extends JPanel implements ActionListener {
 
-    private UserProfileServiceGrpc.UserProfileServiceBlockingStub blockingStub;
+    private UserProfileServiceGrpc.UserProfileServiceBlockingStub userProfileServiceBlockingStub;
+
+    private SkillSelectionServiceGrpc.SkillSelectionServiceBlockingStub skillSelectionBlockingStub;
+
 
                 //Register session
     private JTextField nameField, emailField, professionField;  //field to data entry
@@ -24,10 +32,13 @@ public class UserProfilePanel extends JPanel implements ActionListener {
     private JTextField userIdSkillField;        //
     private JButton getSkillsButton;            //
     private JTextArea skillResultArea;
+    private JComboBox<String> skillsDropdown;
+    private Map<String, String> skillNameToIdMap;
 
     //constructor
     public UserProfilePanel(ManagedChannel channel){
-        this.blockingStub = UserProfileServiceGrpc.newBlockingStub(channel);
+        this.userProfileServiceBlockingStub = UserProfileServiceGrpc.newBlockingStub(channel);
+        this.skillSelectionBlockingStub = SkillSelectionServiceGrpc.newBlockingStub(channel);
 
         setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
         setBorder(new EmptyBorder(10, 10, 10, 10)); //add borders around the panel
@@ -40,11 +51,14 @@ public class UserProfilePanel extends JPanel implements ActionListener {
         nameField = new JTextField(15);
         emailField = new JTextField(15);
         professionField = new JTextField(15);
+        skillsDropdown = new JComboBox<>();
+        skillNameToIdMap = new HashMap<>();
 
         // method to add label fields
         registerSection.add(createLabelField("Name: ", nameField));
         registerSection.add(createLabelField("Email: ", emailField));
         registerSection.add(createLabelField("Profession: ", professionField));
+        registerSection.add(createLabelField("Select Skill: ", skillsDropdown));
 
         registerButton = new JButton("Register user");
         registerButton.addActionListener(this);
@@ -83,11 +97,11 @@ public class UserProfilePanel extends JPanel implements ActionListener {
         add(skillSection);
     }
 
-    private JPanel createLabelField(String labelText, JTextField textField){
+    private JPanel createLabelField(String labelText, JComponent component){
         JPanel panel = new JPanel();
         panel.setLayout(new FlowLayout(FlowLayout.LEFT));     //to
         panel.add(new JLabel(labelText));
-        panel.add(textField);
+        panel.add(component);
         return panel;
     }
 
@@ -96,7 +110,24 @@ public class UserProfilePanel extends JPanel implements ActionListener {
         if(e.getSource() == registerButton){
             registerUser();
         }else if (e.getSource() == getSkillsButton){
-           getSkillsForUser();
+           getUSerSkills();
+        }
+    }
+    //method to load the skills from skills selection service
+    private void loadAvailableSkills(){
+        skillsDropdown.removeAllItems(); //clean
+        skillNameToIdMap.clear(); //clean map
+
+        ListAvailableSkillsRequest request = ListAvailableSkillsRequest.newBuilder().build();
+        try{
+            AvailableSkillList response = skillSelectionBlockingStub.listAvailableSkills(request);
+            for(AvailableSkill skill : response.getSkillsList()){
+                skillsDropdown.addItem(skill.getName()); //add name to dropdown
+                skillNameToIdMap.put(skill.getName(), skill.getId());
+            }
+            registerResultArea.append("Skills loaded successfully\n");
+        }catch (StatusRuntimeException e){
+            registerResultArea.append("Error loading skills: " + e.getMessage());
         }
     }
         //CALL gRPC registerUser()
@@ -104,65 +135,71 @@ public class UserProfilePanel extends JPanel implements ActionListener {
         String name = nameField.getText();
         String email = emailField.getText();
         String profession = professionField.getText();
-
-        if(name.isEmpty() || email.isEmpty()){
-            registerResultArea.setText("Error: Name and email are required");
-            return;
+        String selectedSkillName = (String) skillsDropdown.getSelectedItem();
+        String selectedSkillId = null;
+            if (selectedSkillName != null) {
+                selectedSkillId = skillNameToIdMap.get(selectedSkillName);
         }
-
-        try {
-            RegisterRequest request = RegisterRequest.newBuilder()
-                    .setName(name)
-                    .setEmail(email)
-                    .setProfession(profession)
-                    .build();
-            RegisterResponse response = blockingStub.registerUser(request);
-
-            if(!response.getUserId().isEmpty()){
-                registerResultArea.setText("User successfully registered " + response.getUserId());
-                nameField.setText("");
-                emailField.setText("");
-                professionField.setText("");
-            } else {
-                registerResultArea.setText("Error: Username and email are required");
+            if(name.isEmpty() || email.isEmpty() || profession.isEmpty() || selectedSkillId == null){
+                registerResultArea.setText("Error: Name, email, profession and skill are required");
+                return;
             }
-        } catch (Exception e) {
-            registerResultArea.setText("Error: " + e.getMessage());
-            System.out.println("Error registering user: " + e.getMessage());
-            return;
-        }
+            try{
+                RegisterRequest.Builder requestBuilder = RegisterRequest.newBuilder()
+                        .setUsername(name)
+                        .setEmail(email)
+                        .setProfession(profession);
+
+                //add skills if so
+                if(selectedSkillId != null){
+                    requestBuilder.addSelectedSkillIds(selectedSkillId);
+                }
+                RegisterResponse response = userProfileServiceBlockingStub.registerUser(requestBuilder.build());
+
+                if(response.getSuccess()){
+                    registerResultArea.setText("User successfully registered " + response.getUserId());
+                    nameField.setText("");
+                    emailField.setText("");
+                    professionField.setText("");
+                }else{
+                    registerResultArea.setText("Error: Username and email are required");
+                    return;
+                }
+            }catch (StatusRuntimeException e){
+                registerResultArea.setText("Error registering user: " + e.getMessage());
+            }
     }
-    //CALL gRPC getSkillsForUser()
-    private void getSkillsForUser(){
+    //CALL gRPC getUSerSkills
+    private void getUSerSkills(){
         String userId = userIdSkillField.getText();
 
         if(userId.isEmpty()){
             skillResultArea.setText("Error: User ID is required");
             return;
         }
-
         try{
-            UserRequest request = UserRequest.newBuilder()
+            GetUserSkillsRequest request = GetUserSkillsRequest.newBuilder()
                     .setUserId(userId)
                     .build();
-
-            Iterator<Skill> skillIterator = blockingStub.getUserSkills(request);
+            GetUserSkillsResponse response = userProfileServiceBlockingStub.getUserSkills(request);
 
             StringBuilder sb = new StringBuilder("Skills for user ID: " + userId + ":\n");
-            boolean foundSkills = false;
-            while(skillIterator.hasNext()){
-                Skill skill = skillIterator.next();
-                sb.append(skill.getName()).append("Level: ").append(skill.getLevel()).append("\n");
-                foundSkills = true;
-            }
-            if(!foundSkills){
-                sb.append("No skills found.\n");
+
+            if (response.getSuccess()) {
+                if (response.getSkillsList().isEmpty()) {
+                    sb.append("No skills found.\n");
+                } else {
+                    for (UserSkill skill : response.getSkillsList()) {
+                        sb.append("- ").append(skill.getName()).append(" (ID: ").append(skill.getId()).append(")\n");
+                    }
+                }
+            } else {
+                sb.append("Error retrieving skills: ").append(response.getMessage()).append("\n");
             }
             skillResultArea.setText(sb.toString());
 
         }catch(StatusRuntimeException ex){
-            skillResultArea.setText("Unexpected Error " + ex.getMessage());
-            System.out.println("Unexpected Error getting skills: " + ex.getMessage());
+                    System.out.println("Error getting skills: ");
         }
     }
 }

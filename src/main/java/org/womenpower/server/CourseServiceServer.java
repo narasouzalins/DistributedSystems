@@ -1,11 +1,20 @@
+package org.womenpower.server;
+
 import io.grpc.Server;
 import io.grpc.ServerBuilder;
+import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
 import org.womenpower.courses.*;
+import org.womenpower.userprofile.RegisterRequest;
+import org.womenpower.userprofile.RegisterResponse;
+import org.womenpower.userprofile.UserProfileServiceGrpc;
 
-import java.util.Map;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class CourseServiceServer { //method to initiate the server
     public static void main(String[] args) throws Exception {

@@ -81,7 +81,7 @@
                 <artifactId>exec-maven-plugin</artifactId>
                 <version>3.1.0</version>
                 <configuration>
-                    <mainClass>UserProfileServer</mainClass>
+                    <mainClass>org.womenpower.server.CourseServiceServer.UserProfileServer</mainClass>
                 </configuration>
             </plugin>
         </plugins>
