@@ -2,23 +2,26 @@ package org.womenpower.client;
 
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
+import io.grpc.StatusRuntimeException;
 import org.womenpower.courses.*;
 
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 
 public class CourseServicePanel extends JPanel implements ActionListener {
     //enrollment course field
     private JTextField userIdEnrollField; //User ID input
-    private JTextField courseIdEnrollField; //course id input
+    private JComboBox<String> courseDropdown;
+    private Map<String, String> courseNameToIdMap;
 
     //generateCert field
     private JTextField enrollmentIdCertField;     // Enrollment ID input for certificate
-    private JTextField assessmentScoreCertField;   // Assessment Score input for certificate
 
     //buttons
     private JButton enrollCourseButton;
@@ -30,9 +33,11 @@ public class CourseServicePanel extends JPanel implements ActionListener {
     private CourseServiceGrpc.CourseServiceBlockingStub courseServiceStub; // Blocking stub for making gRPC calls
     private ManagedChannel channel; // gRPC channel to communicate with the server
 
-
     //constructor
-    public CourseServicePanel() {
+    public CourseServicePanel(ManagedChannel channel) {
+        this.channel = channel;
+        this.courseServiceStub = CourseServiceGrpc.newBlockingStub(channel);
+
         setLayout(new BoxLayout(this, BoxLayout.PAGE_AXIS));
         setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));  // Add padding around the panel
         setBackground(new Color(240, 248, 255));     // Set a light background color
@@ -59,14 +64,15 @@ public class CourseServicePanel extends JPanel implements ActionListener {
         enrollmentPanel.add(userIdEnrollPanel);
         enrollmentPanel.add(Box.createVerticalStrut(5));
 
-        // course id for enroll
-        JPanel courseIdEnrollPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        courseIdEnrollPanel.setBackground(new Color(240, 248, 255));
-        courseIdEnrollPanel.add(new JLabel("Course ID:   "));
-        courseIdEnrollField = new JTextField(20);
-        courseIdEnrollPanel.add(courseIdEnrollField);
-        enrollmentPanel.add(courseIdEnrollPanel);
-        enrollmentPanel.add(Box.createVerticalStrut(10));
+        //courses dropdown
+        JPanel courseDropdownPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        courseDropdownPanel.setBackground(new Color(240, 248, 255));
+        courseDropdownPanel.add(new JLabel("Select Course:"));
+        courseDropdown = new JComboBox<>();
+        courseDropdown.setPreferredSize(new Dimension(200, 25));
+        courseNameToIdMap = new HashMap<>();
+        courseDropdownPanel.add(courseDropdown);
+        enrollmentPanel.add(courseDropdownPanel);
 
         //enroll button
         enrollCourseButton = new JButton("Enroll Course");
@@ -88,20 +94,10 @@ public class CourseServicePanel extends JPanel implements ActionListener {
         //enroll id for cert
         JPanel enrollmentIdCertPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
         enrollmentIdCertPanel.setBackground(new Color(240, 248, 255));
-        enrollmentIdCertPanel.add(new JLabel("Enrollment ID:   "));
+        enrollmentIdCertPanel.add(new JLabel("Enrollment ID: "));
         enrollmentIdCertField = new JTextField(20);
         enrollmentIdCertPanel.add(enrollmentIdCertField);
         certificatePanel.add(enrollmentIdCertPanel);
-        certificatePanel.add(Box.createVerticalStrut(5));
-
-        //assess score cert
-        JPanel assessmentScoreCertPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        assessmentScoreCertPanel.setBackground(new Color(240, 248, 255));
-        assessmentScoreCertPanel.add(new JLabel("Assessment Score:   "));
-        assessmentScoreCertField = new JTextField(20);
-        assessmentScoreCertPanel.add(assessmentScoreCertField);
-        certificatePanel.add(assessmentScoreCertPanel);
-        certificatePanel.add(Box.createVerticalStrut(5));
 
         //generate cert button
         generateCertificateButton = new JButton("Generate Certificate");
@@ -122,19 +118,9 @@ public class CourseServicePanel extends JPanel implements ActionListener {
         add(scrollPane);
         add(Box.createVerticalGlue());
 
-        //initialize gRPC client
-        initializeGrpcClient();
+        loadAvailableCourses();
     }
-
-    //method to initialize gRPC client
-    private void initializeGrpcClient() {
-        channel = ManagedChannelBuilder.forAddress("localhost", 9091)
-                .usePlaintext()
-                .build();
-        courseServiceStub = CourseServiceGrpc.newBlockingStub(channel);
-    }
-
-    public void shutdown() {       //method to turn off the grpc channel
+    public void shutdown() { //method to turn off the grpc channel
         try {
             if (channel != null) {
                 //try to turn off the channel and wait 5 seconds
@@ -146,7 +132,6 @@ public class CourseServicePanel extends JPanel implements ActionListener {
             Thread.currentThread().interrupt();
         }
     }
-
     // ActionListener implementation for button clicks
     @Override
     public void actionPerformed(ActionEvent e) {
@@ -156,14 +141,50 @@ public class CourseServicePanel extends JPanel implements ActionListener {
             generateCertificate();
         }
     }
+    private void loadAvailableCourses() {
+        courseDropdown.removeAllItems();
+        courseNameToIdMap.clear();
 
-    private void enrollCourse() {
+    ListCoursesRequest request = ListCoursesRequest.newBuilder().build();
+        try {
+        System.out.println("Attempting to load available courses...");
+        CourseList response = courseServiceStub.listCourses(request);
+
+        SwingUtilities.invokeLater(() -> {
+            if (response.getSuccess()) {
+                for (Course course : response.getCoursesList()) {
+                    courseDropdown.addItem(course.getTitle());
+                    courseNameToIdMap.put(course.getTitle(), course.getCourseId());
+                }
+                resultArea.append("Courses loaded successfully.\n");
+            } else {
+                resultArea.append("Error loading courses: " + response.getMessage() + "\n"); // Exibe mensagem do servidor
+            }
+            courseDropdown.revalidate();
+            courseDropdown.repaint();
+            CourseServicePanel.this.revalidate();
+            CourseServicePanel.this.repaint();
+        });
+
+        }catch (StatusRuntimeException e) {
+            System.err.println("gRPC error loading courses: " + e.getStatus() + " - " + e.getMessage());
+            SwingUtilities.invokeLater(() -> {
+                resultArea.append("Error loading courses (gRPC issue): " + e.getMessage() + "\n");
+            });
+        }
+    }
+    private void enrollCourse(){
         resultArea.setText("");
-        String userId = userIdEnrollField.getText(); //
-        String courseId = courseIdEnrollField.getText();
+        String userId = userIdEnrollField.getText().trim(); //use trim to remove blank spaces
+        String selectedCourseTitle = (String) courseDropdown.getSelectedItem(); //get the item selected
+        String courseId = null;
 
-        if (userId.isEmpty() || courseId.isEmpty()) {
-            resultArea.append("UserID and Course ID are required");
+        if (selectedCourseTitle != null && courseNameToIdMap.containsKey(selectedCourseTitle)) {
+            courseId = courseNameToIdMap.get(selectedCourseTitle);
+        }
+
+        if (userId.isEmpty() || courseId == null || courseId.isEmpty()) { //validate user and id
+            resultArea.append("User ID and a course selection are required.\n");
             return;
         }
         try {
@@ -174,34 +195,49 @@ public class CourseServicePanel extends JPanel implements ActionListener {
 
             EnrollmentStatus response = courseServiceStub.enrollCourse(request);
 
-            resultArea.append("Enrollment successful!\n");
-            resultArea.append("Enrollment ID: " + response.getEnrollmentId() + "\n");
-            resultArea.append("Course Link: " + response.getCourseLink() + "\n");
-        } catch (Exception e) {
-            resultArea.append("Error during enrollment: " + e.getMessage() + "\n");
-            e.printStackTrace(); //print complete
+            if (response.getSuccess()) {
+                resultArea.append("Enrollment successful!\n");
+                resultArea.append("Enrollment ID: " + response.getEnrollmentId() + "\n");
+                resultArea.append("Course Link: " + response.getCourseLink() + "\n");
+                resultArea.append("Message: " + response.getMessage() + "\n");
+
+                userIdEnrollField.setText("");
+                courseDropdown.setSelectedIndex(-1); // Reset selection
+            } else {
+                resultArea.append("Enrollment failed: " + response.getMessage() + "\n");
+            }
+        } catch (StatusRuntimeException e) { // Use StatusRuntimeException para gRPC
+            resultArea.append("Error during enrollment (gRPC issue): " + e.getMessage() + "\n");
+            System.err.println("gRPC error during enrollment: " + e.getStatus() + " - " + e.getMessage());
+            e.printStackTrace();
         }
     }
     private void generateCertificate() {
         resultArea.setText("");
-        String enrollmentId = enrollmentIdCertField.getText(); //
-        String assessmentScore = assessmentScoreCertField.getText();
+        String enrollmentId = enrollmentIdCertField.getText().trim();
 
-        if(enrollmentId.isEmpty() || assessmentScore.isEmpty()) {
-            resultArea.append("Enrollment ID and Assessment Score are required");
+        if (enrollmentId.isEmpty()) {
+            resultArea.append("Enrollment ID is required to generate a certificate.\n");
             return;
         }
-        try{
+        try {
             CertificateRequest request = CertificateRequest.newBuilder()
                     .setEnrollmentId(enrollmentId)
-                    .setAssessmentScore(assessmentScore)
                     .build();
+
             Certificate response = courseServiceStub.generateCertificate(request);
 
-            resultArea.append("Certificate Generated!\n");
-            resultArea.append("PDF URL: " + response.getPdfUrl() + "\n");
-        }catch(Exception e){
-            resultArea.append("Error generating certificate!\n" + e.getMessage());
+            if (response.getSuccess()) {
+                resultArea.append("Certificate Generated!\n");
+                resultArea.append("PDF URL: " + response.getPdfUrl() + "\n");
+                resultArea.append("Message: " + response.getMessage() + "\n");
+                enrollmentIdCertField.setText("");
+            } else {
+                resultArea.append("Error generating certificate: " + response.getMessage() + "\n");
+            }
+        } catch (StatusRuntimeException e) { // Use StatusRuntimeException to gRPC
+            resultArea.append("Error generating certificate (gRPC issue): " + e.getMessage() + "\n");
+            System.err.println("gRPC error during certificate generation: " + e.getStatus() + " - " + e.getMessage());
             e.printStackTrace();
         }
     }

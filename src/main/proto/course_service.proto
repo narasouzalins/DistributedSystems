@@ -16,15 +16,18 @@ message CourseEnrollment {
 message EnrollmentStatus {
   string enrollment_id = 1;
   string course_link = 2;
+  bool success = 3;
+  string message = 4;
 }
 
 message CertificateRequest {
   string enrollment_id = 1;
-  string assessment_score = 2;
 }
 
 message Certificate {
   string pdf_url = 1;
+  bool success = 2;
+  string message = 3;
 }
 
 message Course {
@@ -36,6 +39,8 @@ message Course {
 
 message CourseList {
   repeated Course courses = 1;
+  bool success = 2;
+  string message = 3;
 }
 
 message ListCoursesRequest{

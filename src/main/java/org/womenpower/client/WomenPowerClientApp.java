@@ -36,7 +36,7 @@ public class WomenPowerClientApp extends JFrame {
         UserProfilePanel userProfilePanel = new UserProfilePanel(userProfileChannel);
         mainContentPanel.add(userProfilePanel);
 
-        courseServicePanel = new CourseServicePanel();
+        courseServicePanel = new CourseServicePanel(courseChannel);
         mainContentPanel.add(courseServicePanel);
 
         add(mainContentPanel, BorderLayout.CENTER);

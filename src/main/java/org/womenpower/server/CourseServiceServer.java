@@ -6,9 +6,44 @@ import io.grpc.stub.StreamObserver;
 import org.womenpower.courses.*;
 
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class CourseServiceServer { //method to initiate the server
+    //simulate a database for courses
+    private static final ConcurrentHashMap<String, Course> availableCourses = new ConcurrentHashMap<>();
+
+    //database simulating enrollment
+    private static final ConcurrentHashMap<String, EnrollmentData> enrollments = new ConcurrentHashMap<>();
+
+    static class EnrollmentData {
+        String enrollmentId;
+        String userId;
+        String courseId;
+        boolean isCompleted;
+
+        public EnrollmentData(String enrollmentId, String userId, String courseId, boolean isCompleted) {
+            this.enrollmentId = enrollmentId;
+            this.userId = userId;
+            this.courseId = courseId;
+            this.isCompleted = isCompleted;
+        }
+
+        public boolean isCompleted() {
+            return isCompleted;
+        }
+        public void setCompleted(boolean isCompleted) {
+            this.isCompleted = isCompleted;
+        }
+        public String getCourseId() {
+            return courseId;
+        }
+        public String getUserId() {
+            return userId;
+        }
+    }
     public static void main(String[] args) throws Exception {
+        initializeAvailableCourses();
+
         Server sv = ServerBuilder.forPort(8091)
                 .addService(new CourseEnrollmentImpl()) //to register implementation
                 .build();
@@ -18,78 +53,126 @@ public class CourseServiceServer { //method to initiate the server
         sv.start(); //to initiate server
         sv.awaitTermination();  //keep the server running
     }
-
-            //CourseService implementation
+            //method to initialize the courses
+    private static void initializeAvailableCourses(){
+        availableCourses.put("java_intro", Course.newBuilder()
+                .setCourseId("java_intro")
+                .setTitle("Introduction to Java")
+                .setDescription("Oriented Object Programming.")
+                .setLecturer("Dra. Mary Hues")
+                .build());
+        availableCourses.put("web_dev", Course.newBuilder()
+                .setCourseId("web_dev")
+                .setTitle(" Fullstack Web Development")
+                .setDescription("HTML, CSS, JavaScript, React and Node.js.")
+                .setLecturer("Prof. Carlos Mendes")
+                .build());
+        availableCourses.put("ml_basics", Course.newBuilder()
+                .setCourseId("ml_basics")
+                .setTitle("Machine Learning Basics")
+                .setDescription("IA, algorithms and models.")
+                .setLecturer("Dr. George Smith")
+                .build());
+        System.out.println("Initialized " + availableCourses.size() + " courses.");
+    }
+    //course service impl
     static class CourseEnrollmentImpl extends CourseServiceGrpc.CourseServiceImplBase {
 
-                /*
-                 * enrollment implementation
-                 * @param request userId and courseId
-                 */
+        @Override
+        public void listCourses(ListCoursesRequest request, StreamObserver<CourseList> responseObserver){
+            CourseList.Builder responseBuilder = CourseList.newBuilder();
+
+            if(availableCourses.isEmpty()){
+                responseBuilder.setSuccess(false).setMessage("No courses available.");
+            }else{
+                for(Course course : availableCourses.values()){
+                    responseBuilder.addCourses(course);
+                }
+                responseBuilder.setSuccess(true).setMessage("Available courses listed");
+                System.out.println("Sent " + availableCourses.size() + " courses.");
+            }
+            responseObserver.onNext(responseBuilder.build());
+            responseObserver.onCompleted();
+        }
         @Override
         public void enrollCourse(CourseEnrollment request, StreamObserver<EnrollmentStatus> responseObserver) {
 
             String userId = request.getUserId();
             String courseId = request.getCourseId();
+            String enrollmentId = "ID" + UUID.randomUUID().toString().substring(0, 8); //unique id
+            String courseLink = " ";
+
+            System.out.println("Enrolling user " + userId + " in course " + courseId);
+
             // to validate user
-            if(userId.isEmpty() || courseId.isEmpty()) {
+            if (userId.isEmpty() || courseId.isEmpty()) {
                 responseObserver.onNext(EnrollmentStatus.newBuilder()
-                        .setEnrollmentId("Error: UserId or CourseId are required")
+                        .setSuccess(false)
+                        .setEnrollmentId("")
+                        .setCourseLink("")
+                        .setMessage("Error: User ID and Course ID are required.")
                         .build());
                 responseObserver.onCompleted();
+                System.out.println("Enrollment failed: User ID or Course ID is empty.");
                 return;
             }
-                    // to generate an unique ID
-            String enrollmentId = "ID" + UUID.randomUUID().toString();
-            String courseLink = "CourseLink" + courseId;
-
             responseObserver.onNext(EnrollmentStatus.newBuilder()
-                    .setEnrollmentId(userId)
+                    .setSuccess(true)
+                    .setEnrollmentId(enrollmentId)
                     .setCourseLink(courseId)
+                    .setMessage("Enrollment successful.")
                     .build());
             responseObserver.onCompleted();
         }
-                    /* generateCert implementation
-                    @param request enrollmentID and AssessmentScore
-                     */
+                    //generateCert implementation
+
         @Override
         public void generateCertificate(CertificateRequest request, StreamObserver<Certificate> responseObserver) {
             String enrollmentId = request.getEnrollmentId();
-            String assessmentScore = request.getAssessmentScore();
+
+            System.out.println("Generating certificate for enrollment ID: " + enrollmentId);
 
             //validation
-            if(enrollmentId.isEmpty() || assessmentScore.isEmpty()) {
+            if(enrollmentId.isEmpty()) {
                 responseObserver.onNext(Certificate.newBuilder()
-                        .setPdfUrl("Error: Missing enrollment ID or assessment score")
+                        .setSuccess(false)
+                        .setPdfUrl(" ")
+                        .setMessage("Error: Enrollment ID is required.")
                         .build());
                 responseObserver.onCompleted();
                 return;
             }
-            //verify if the score is only numbers
-            if (!assessmentScore.matches("\\d+")){
+            //verify if the course is completed
+            EnrollmentData enrollmentData = enrollments.get(enrollmentId);
+            if (enrollmentData == null) {
                 responseObserver.onNext(Certificate.newBuilder()
-                .setPdfUrl("Error: The score must be a number")
+                        .setSuccess(false)
+                        .setPdfUrl("")
+                        .setMessage("Error: Enrollment ID not found.")
                         .build());
                 responseObserver.onCompleted();
                 return;
             }
-            // Convert to number
-            int score = Integer.parseInt(assessmentScore);
+            //use as a test the user completed the course
+            enrollmentData.setCompleted(true);
 
-            //verify min score
-            if(score < 70) {
+            if(!enrollmentData.isCompleted()) {
                 responseObserver.onNext(Certificate.newBuilder()
-                        .setPdfUrl("Error: The score must be at least 70")
+                        .setSuccess(false)
+                        .setPdfUrl("")
+                        .setMessage("Error: Enrollment ID not completed.")
                         .build());
-            }else{
-                //to generate certificate for approved people
-                String pdfUrl = "http://localhost:8090/pdfs/" + enrollmentId + ".pdf";
-                responseObserver.onNext(Certificate.newBuilder()
-                        .setPdfUrl(pdfUrl)
-                        .build());
+                responseObserver.onCompleted();
+                return;
             }
+            String pdfUrl = "http://localhost:8091/certificates/" + UUID.randomUUID().toString() + ".pdf";
+            responseObserver.onNext(Certificate.newBuilder()
+                    .setSuccess(true)
+                    .setPdfUrl(pdfUrl)
+                    .setMessage("Certificate generated successfully! PDF available at: " + pdfUrl)
+                    .build());
             responseObserver.onCompleted();
+            System.out.println("Certificate generated for enrollment ID: " + enrollmentId);
         }
-
     }
 }
