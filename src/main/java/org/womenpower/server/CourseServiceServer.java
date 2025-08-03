@@ -21,7 +21,7 @@ public class CourseServiceServer { //method to initiate the server
         String courseId;
         boolean isCompleted;
 
-        public EnrollmentData(String enrollmentId, String userId, String courseId, boolean isCompleted) {
+        public EnrollmentData(String enrollmentId, String userId, String courseId) {
             this.enrollmentId = enrollmentId;
             this.userId = userId;
             this.courseId = courseId;
@@ -101,7 +101,8 @@ public class CourseServiceServer { //method to initiate the server
             String courseId = request.getCourseId();
             String enrollmentId = "ID" + UUID.randomUUID().toString().substring(0, 8); //unique id
             String courseLink = " ";
-
+            enrollments.put(enrollmentId, new EnrollmentData(enrollmentId, userId, courseId));
+            System.out.println("Enrollment created with ID: " + enrollmentId);
             System.out.println("Enrolling user " + userId + " in course " + courseId);
 
             // to validate user
