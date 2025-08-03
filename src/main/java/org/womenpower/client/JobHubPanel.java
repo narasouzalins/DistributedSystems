@@ -33,7 +33,7 @@ public class JobHubPanel extends JPanel {
     private JButton matchJobButton;
 
     public JobHubPanel(ManagedChannel jobHubChannel) {
-        setLayout(new BorderLayout());
+        setLayout(new BoxLayout(this, BoxLayout.X_AXIS));
         this.channel = jobHubChannel;
         this.blockingStub = JobHubServiceGrpc.newBlockingStub(channel);
         this.asyncStub = JobHubServiceGrpc.newStub(channel);
@@ -45,7 +45,7 @@ public class JobHubPanel extends JPanel {
         mentorshipInputPanel.add(new JLabel("User ID:"));
         mentorshipUserIdField = new JTextField();
         mentorshipInputPanel.add(mentorshipUserIdField);
-        mentorshipInputPanel.add(new JLabel("Interests (comma-separated):"));
+        mentorshipInputPanel.add(new JLabel("Interests: "));
         mentorshipInterestsField = new JTextField();
         mentorshipInputPanel.add(mentorshipInterestsField);
 
@@ -82,8 +82,8 @@ public class JobHubPanel extends JPanel {
         JScrollPane jobScrollPane = new JScrollPane(jobResultsArea);
         jobPanel.add(jobScrollPane, BorderLayout.CENTER);
 
-        add(mentorshipPanel, BorderLayout.WEST);
-        add(jobPanel, BorderLayout.EAST);
+        add(mentorshipPanel);
+        add(jobPanel);
 
         findMentorshipButton.addActionListener(new ActionListener() {
             @Override

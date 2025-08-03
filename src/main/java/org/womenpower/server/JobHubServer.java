@@ -4,68 +4,94 @@ import io.grpc.Server;
 import io.grpc.ServerBuilder;
 import io.grpc.stub.StreamObserver;
 import org.womenpower.jobhub.*;
+import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Collectors;
 
-public class JobHubServer {   //this method is to initiate the server
-    public static void main(String[] args) throws Exception {
-        Server server = ServerBuilder.forPort(8092)
-                .addService( new JobHubService())
+public class JobHubServer {
+
+    private Server server;
+    private static final int PORT = 8092;
+
+    public static void main(String[] args) throws IOException, InterruptedException {
+        final JobHubServer jobHubServer = new JobHubServer();
+        jobHubServer.start();
+        jobHubServer.blockUntilShutdown();
+    }
+
+    private void start() throws IOException {
+        server = ServerBuilder.forPort(PORT)
+                .addService(new JobHubServiceImpl())
                 .build()
                 .start();
-        System.out.println("JobHubService started on port 8092");
-        server.awaitTermination();
-    }
-                   //service implementation
-    static class JobHubService extends JobHubServiceGrpc.JobHubServiceImplBase {
-        List<Mentorship> mentours = Arrays.asList(
-                Mentorship.newBuilder()
-                        .setMentorName("Ann Fanegan")
-                        .setExpertise("Software Engineer")
-                        .setContactInfo("ann@gmail.com")
-                        .build()
 
-        );    //database
-        List<JobListing> jobs = Arrays.asList(
-                JobListing.newBuilder()
-                        .setJobTitle("Java Developer")
-                        .setCompany("Google")
-                        .setSalaryRange(5000)
-                        .build()
+        System.out.println("JobHub Server started, listening on port " + PORT);
+
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            System.err.println("Shutting down gRPC server gracefully.");
+            if (server != null) {
+                server.shutdown();
+            }
+        }));
+    }
+
+    private void blockUntilShutdown() throws InterruptedException {
+        if (server != null) {
+            server.awaitTermination();
+        }
+    }
+
+    private static class JobHubServiceImpl extends JobHubServiceGrpc.JobHubServiceImplBase {
+
+        // database to test mentors
+        private final List<Mentorship> mentors = Arrays.asList(
+                Mentorship.newBuilder().setMentorName("Dr. Alice Smith").setExpertise("Cloud Computing").setContactInfo("alice.s@example.com").build(),
+                Mentorship.newBuilder().setMentorName("Jane Doe").setExpertise("Data Science").setContactInfo("jane.d@example.com").build(),
+                Mentorship.newBuilder().setMentorName("Sarah Jones").setExpertise("Cybersecurity").setContactInfo("sarah.j@example.com").build(),
+                Mentorship.newBuilder().setMentorName("Lucy Chen").setExpertise("Project Management").setContactInfo("lucy.c@example.com").build()
         );
 
+        // database to test jobs
+        private final JobListing job = JobListing.newBuilder()
+                .setJobTitle("Software Developer")
+                .setCompany("Tech Solutions Inc.")
+                .setSalaryRange(85000)
+                .build();
+
+        //implementation
         @Override
         public void findMentorship(MentorshipQuery request, StreamObserver<Mentorship> responseObserver) {
-            for (Mentorship m : mentours) {
-                if (request.getInterestsList().isEmpty() || m.getExpertise().toLowerCase().contains(request.getInterestsList().get(0).toLowerCase())) {
-                    responseObserver.onNext(m);
+            System.out.println("FindMentorship request received for user ID: " + request.getUserId());
+            System.out.println("Interests: " + request.getInterestsList());
+
+            // sending all mentors
+            for (Mentorship mentorship : mentors) {
+                // send one mentor per time
+                responseObserver.onNext(mentorship);
+
+
+                try {
+                    Thread.sleep(500);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
                 }
             }
             responseObserver.onCompleted();
-            System.out.println("Mentorship found");
+            System.out.println("FindMentorship stream completed.");
         }
-                //MatchJOb service implementation (unary)
+
+
+        //matchJob implementation
         @Override
         public void matchJob(JobMatchRequest request, StreamObserver<JobListing> responseObserver) {
-            System.out.println("Searching for job for: " + request.getUserId());
-         //Search for the first vacancy that matches:
-        // Salary >= minimum requested
-        // Location contains the filter
-            for (JobListing j : jobs) {
-                if (j.getSalaryRange() >= request.getMinSalary() &&
-                        (request.getLocation().isEmpty() ||
-                        j.getCompany().toLowerCase()
-                        .contains(request.getLocation().toLowerCase()))) {
+            System.out.println("MatchJob request received for user ID: " + request.getUserId());
+            System.out.println("Location: " + request.getLocation());
+            System.out.println("Min Salary: " + request.getMinSalary());
 
-                    //Found a matched job and send to user
-                    responseObserver.onNext(j);
-                    responseObserver.onCompleted();
-                    System.out.println("Job found" + j.getJobTitle());
-                    return;
-                }
-            }//if not matches found
+            responseObserver.onNext(job);
             responseObserver.onCompleted();
-            System.out.println("No jobs found");
+            System.out.println("MatchJob response sent.");
         }
     }
 }
