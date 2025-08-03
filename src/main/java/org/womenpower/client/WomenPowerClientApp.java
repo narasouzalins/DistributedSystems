@@ -7,7 +7,6 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
-import org.womenpower.client.JobHubPanel;
 
 public class WomenPowerClientApp extends JFrame {
 

@@ -7,7 +7,10 @@ import org.womenpower.courses.*;
 
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
-
+/*
+ * Main server application for the Course Service.
+ * It manages course listings, user enrollments, and certificate generation.
+ */
 public class CourseServiceServer { //method to initiate the server
     //simulate a database for courses
     private static final ConcurrentHashMap<String, Course> availableCourses = new ConcurrentHashMap<>();
@@ -40,7 +43,7 @@ public class CourseServiceServer { //method to initiate the server
         public String getUserId() {
             return userId;
         }
-    }
+    }// Initializes a set of mock courses for the server to offer.
     public static void main(String[] args) throws Exception {
         initializeAvailableCourses();
 
@@ -78,6 +81,7 @@ public class CourseServiceServer { //method to initiate the server
     //course service impl
     static class CourseEnrollmentImpl extends CourseServiceGrpc.CourseServiceImplBase {
 
+        //Here I list all courses
         @Override
         public void listCourses(ListCoursesRequest request, StreamObserver<CourseList> responseObserver){
             CourseList.Builder responseBuilder = CourseList.newBuilder();
@@ -94,6 +98,8 @@ public class CourseServiceServer { //method to initiate the server
             responseObserver.onNext(responseBuilder.build());
             responseObserver.onCompleted();
         }
+
+        //Method that enroll a user to a course and save on user information
         @Override
         public void enrollCourse(CourseEnrollment request, StreamObserver<EnrollmentStatus> responseObserver) {
 
@@ -125,8 +131,9 @@ public class CourseServiceServer { //method to initiate the server
                     .build());
             responseObserver.onCompleted();
         }
-                    //generateCert implementation
 
+
+        //Generate a mock Certificate
         @Override
         public void generateCertificate(CertificateRequest request, StreamObserver<Certificate> responseObserver) {
             String enrollmentId = request.getEnrollmentId();

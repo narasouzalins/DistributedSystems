@@ -14,6 +14,8 @@ public class SkillSelectionServiceImpl extends SkillSelectionServiceGrpc.SkillSe
 
     private static final Map<String, AvailableSkill> availableSkills;
 
+
+    //Mock Database of available skills
     static{
         availableSkills = new HashMap<>();
         availableSkills.put("java", AvailableSkill.newBuilder().setId("java").setName(" Java").build());
@@ -28,6 +30,7 @@ public class SkillSelectionServiceImpl extends SkillSelectionServiceGrpc.SkillSe
         return Collections.unmodifiableMap(availableSkills);
     }
 
+    //Method that allow user to fetch availables skills
     @Override
     public void listAvailableSkills(ListAvailableSkillsRequest request, StreamObserver<AvailableSkillList> responseObserver) {
         System.out.println("Request received for listing available skills");

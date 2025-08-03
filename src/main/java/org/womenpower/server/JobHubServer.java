@@ -7,8 +7,12 @@ import org.womenpower.jobhub.*;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
-import java.util.stream.Collectors;
 
+/*
+ * The main server application for the Job Hub service.
+ * This class sets up and starts the gRPC server, which provides
+ * mentorship and job matching services.
+ */
 public class JobHubServer {
 
     private Server server;
@@ -20,6 +24,7 @@ public class JobHubServer {
         jobHubServer.blockUntilShutdown();
     }
 
+    //Start the server on the port 8092
     private void start() throws IOException {
         server = ServerBuilder.forPort(PORT)
                 .addService(new JobHubServiceImpl())
@@ -41,10 +46,10 @@ public class JobHubServer {
             server.awaitTermination();
         }
     }
-
+        // This class handles all RPC calls defined in the .proto
     private static class JobHubServiceImpl extends JobHubServiceGrpc.JobHubServiceImplBase {
 
-        // database to test mentors
+        // Mock database to test mentors
         private final List<Mentorship> mentors = Arrays.asList(
                 Mentorship.newBuilder().setMentorName("Dr. Alice Smith").setExpertise("Cloud Computing").setContactInfo("alice.s@example.com").build(),
                 Mentorship.newBuilder().setMentorName("Jane Doe").setExpertise("Data Science").setContactInfo("jane.d@example.com").build(),
@@ -52,14 +57,14 @@ public class JobHubServer {
                 Mentorship.newBuilder().setMentorName("Lucy Chen").setExpertise("Project Management").setContactInfo("lucy.c@example.com").build()
         );
 
-        // database to test jobs
+        // Mock database to test jobs
         private final JobListing job = JobListing.newBuilder()
                 .setJobTitle("Software Developer")
                 .setCompany("Tech Solutions Inc.")
                 .setSalaryRange(85000)
                 .build();
 
-        //implementation
+        //Method to find mentorship for a specific interest
         @Override
         public void findMentorship(MentorshipQuery request, StreamObserver<Mentorship> responseObserver) {
             System.out.println("FindMentorship request received for user ID: " + request.getUserId());

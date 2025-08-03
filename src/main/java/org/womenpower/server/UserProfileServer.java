@@ -2,7 +2,6 @@ package org.womenpower.server;
 
 import io.grpc.Server;
 import io.grpc.ServerBuilder;
-import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
 import org.womenpower.skillselection.AvailableSkill;
 import org.womenpower.userprofile.*;
@@ -14,6 +13,11 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+/*
+ * Main server application for the User Profile service.
+ * This class sets up and starts the gRPC server,
+ * and includes the service implementations.
+ */
 
 public class UserProfileServer {
     private static final ConcurrentHashMap<String, UserProfileData> userStorage = new ConcurrentHashMap<>();
@@ -68,7 +72,7 @@ public class UserProfileServer {
             skills.add(s);
         }
     }
-
+    //method to handle grpc calls
     static class UserProfileServiceImpl extends UserProfileServiceGrpc.UserProfileServiceImplBase {
 
         private final ConcurrentHashMap<String, UserProfileData> userStorage;
@@ -81,6 +85,8 @@ public class UserProfileServer {
         private static final String EMAIL_REGEX = "^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Z|a-z]{2,6}$";
         private static final Pattern EMAIL_PATTERN = Pattern.compile(EMAIL_REGEX);
 
+
+        //Method to Register a new user and add them in the Mock memory
         @Override
         public void registerUser(RegisterRequest request, StreamObserver<RegisterResponse> responseObserver) {
 
@@ -134,7 +140,7 @@ public class UserProfileServer {
             System.out.println("Registered user: " + newUserId);
         }
 
-        //get skills method
+        //Method that fetch user skills
         @Override
         public void getUserSkills(GetUserSkillsRequest request, StreamObserver<GetUserSkillsResponse> responseObserver) {
             String userId = request.getUserId();
@@ -158,7 +164,7 @@ public class UserProfileServer {
                 AvailableSkill availableSkill = SkillSelectionServiceImpl.getAvailableSkillMap().get(skillId);
 
                 if (availableSkill != null) {
-                    // ***** THIS IS THE CORRECTED BLOCK *****
+
                     UserSkill.Builder userSkillBuilder = UserSkill.newBuilder() // Start a new UserSkill builder
                             .setId(skillId)                                     // Set ID on this builder
                             .setName(availableSkill.getName());                 // Set Name on this builder
